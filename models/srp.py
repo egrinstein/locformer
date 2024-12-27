@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -29,7 +28,7 @@ class Srp(nn.Module):
         gcc_tau_max=None,
         estimate_doa=False,
         mic_selection_mode="distinct_angles",
-        peak_picking_mode="argmax"
+        peak_picking_mode="argmax",
     ):
         super().__init__()
 
@@ -60,7 +59,7 @@ class Srp(nn.Module):
         if mic_pos is not None:
             # Precompute the grid of tau0
             self.grid = self._init_grid(mic_pos)
-        
+
         self.mic_selection_mode = mic_selection_mode
 
     def forward(self, x):
@@ -70,7 +69,7 @@ class Srp(nn.Module):
 
         if grid is None:
             self.grid = grid = self._init_grid(mic_pos)
-        
+
         gcc_tau_max = compute_tau_max(mic_pos, self.c, self.fs)
 
         # 0. Apply the window
@@ -84,7 +83,7 @@ class Srp(nn.Module):
         maps = torch.zeros(
             list(x_gcc.shape[0:-3]) + [self.resTheta, self.resPhi], device=x_gcc.device
         ).float()
-        
+
         # 2. Compute the SRP maps
         # 2.1 Perform microphone selection
         # TODO: compute the microphone selection on initialization
@@ -106,7 +105,7 @@ class Srp(nn.Module):
             x["doa_sph"] = self._estimate_doa(maps)
 
         return x
-    
+
     def _estimate_doa(self, srp_map):
         # Estimate the DOA from the SRP map
         # srp_map: tensor of shape [batch_size, resTheta, resPhi]
@@ -119,8 +118,13 @@ class Srp(nn.Module):
             max_the = (maximums / resPhi).float() / resTheta
             max_phi = (maximums % resPhi).float() / resPhi
             # Convert to radians
-            max_the = max_the * (self.theta_range[1] - self.theta_range[0]) + self.theta_range[0]
-            max_phi = max_phi * (self.phi_range[1] - self.phi_range[0]) + self.phi_range[0]
+            max_the = (
+                max_the * (self.theta_range[1] - self.theta_range[0])
+                + self.theta_range[0]
+            )
+            max_phi = (
+                max_phi * (self.phi_range[1] - self.phi_range[0]) + self.phi_range[0]
+            )
 
             return torch.stack([max_the, max_phi], dim=-1)
         elif self.peak_picking_mode == "weighted_sum":
@@ -138,7 +142,6 @@ class Srp(nn.Module):
             # Compute the weighted sum
             return torch.sum(weights * grid, dim=(-2, -3))
 
-
     def _init_grid(self, mic_pos):
         # If the microphone positions are provided,
         # the candidate TDOAs can be precomputed
@@ -155,13 +158,17 @@ class Srp(nn.Module):
                     [
                         torch.outer(torch.sin(self.theta), torch.cos(self.phi)),
                         torch.outer(torch.sin(self.theta), torch.sin(self.phi)),
-                        torch.tile(torch.cos(self.theta), [self.resPhi, 1]).transpose(0, 1),
+                        torch.tile(torch.cos(self.theta), [self.resPhi, 1]).transpose(
+                            0, 1
+                        ),
                     ],
                     dim=2,
                 )
                 mic_diff = (mic_pos[l, :] - mic_pos[k, :]).unsqueeze(0).unsqueeze(0)
 
-                tdoas[:, :, k, l] = (grid_kl.to(mic_diff.device)*mic_diff).sum(dim=-1) / self.c
+                tdoas[:, :, k, l] = (grid_kl.to(mic_diff.device) * mic_diff).sum(
+                    dim=-1
+                ) / self.c
 
         tau = get_gcc_bins(self.frame_size, mic_pos.device) / float(self.fs)
 
