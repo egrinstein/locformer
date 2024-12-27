@@ -41,7 +41,7 @@ class LocataDataset(Dataset):
         dev: True if the groundtruth source positions are available
         transforms: Transform to perform to the simulated microphone signals and the Acoustic Scene
         """
-        
+
         assert (
             recording is None or len(tasks) == 1
         ), "Specific recordings can only be selected for dataset with only one task"
@@ -82,8 +82,9 @@ class LocataDataset(Dataset):
                         if array not in self.directories:
                             self.directories[array] = []
                         self.directories[array].append(
-                            os.path.join(task_path, recording, array))
-        
+                            os.path.join(task_path, recording, array)
+                        )
+
         for array in self.arrays:
             self.directories[array].sort()
 
@@ -174,28 +175,26 @@ class LocataDataset(Dataset):
         else:
             sources_pos = None
             DOA = None
-            source_signal = np.NaN * np.ones((len(mic_signals), 1))
+            source_signal = np.nan * np.ones((len(mic_signals), 1))
 
         acoustic_scene = {
-            "room_sz": np.NaN * np.ones((3, 1)),
-            "T60":np.NaN,
-            "beta": np.NaN * np.ones((6, 1)),
-            "SNR": np.NaN,
+            "room_sz": np.nan * np.ones((3, 1)),
+            "T60": np.nan,
+            "beta": np.nan * np.ones((6, 1)),
+            "SNR": np.nan,
             "array_setup": ARRAY_SETUPS[self.array],
             "mic_pos": np.matmul(
                 array_rotation[0, ...],
                 np.expand_dims(ARRAY_SETUPS[self.array]["mic_pos"], axis=-1),
             ).squeeze()
-            + array_pos[
-                0, :
-            ],
+            + array_pos[0, :],
             "source_signal": source_signal,
             "fs": self.fs,
-            "t":t - start / self.fs,
+            "t": t - start / self.fs,
             "traj_pts": sources_pos[0, ...],
             "timestamps": timestamps - start / self.fs,
             "trajectory": trajectories[0, ...],
-            "DOA":DOA[0, ...],
+            "DOA": DOA[0, ...],
         }
 
         vad = np.zeros_like(source_signal)
@@ -206,9 +205,9 @@ class LocataDataset(Dataset):
                 frame_idx * vad_frame_len : (frame_idx + 1) * vad_frame_len
             ]
             frame_bytes = (frame * 32767).astype("int16").tobytes()
-            vad[
-                frame_idx * vad_frame_len : (frame_idx + 1) * vad_frame_len
-            ] = self.vad.is_speech(frame_bytes, int(self.fs))
+            vad[frame_idx * vad_frame_len : (frame_idx + 1) * vad_frame_len] = (
+                self.vad.is_speech(frame_bytes, int(self.fs))
+            )
         acoustic_scene["vad"] = vad
 
         if self.transforms is not None:
@@ -231,7 +230,7 @@ class LocataDataset(Dataset):
 
     def _collate_fn(self, mic_sig_batch, acoustic_scene_batch):
         """Collate function for the get_batch method.
-        
+
         Args:
             mic_sig_batch (list): list of microphone signals (numpy arrays of shape (n_samples, n_mics)
                                                              or (n_frames, n_freq_bins, n_mics))
@@ -244,16 +243,16 @@ class LocataDataset(Dataset):
 
         idx = np.argmax([sig.shape[0] for sig in mic_sig_batch])
         out_sig_shape = (batch_size,) + mic_sig_batch[idx].shape
-        
+
         idx = np.argmax([scene["DOAw"].shape[0] for scene in acoustic_scene_batch])
         scene_doa_out_shape = acoustic_scene_batch[idx]["DOAw"].shape
-        
+
         idx = np.argmax([scene["vad"].shape[0] for scene in acoustic_scene_batch])
         scene_vad_out_shape = acoustic_scene_batch[idx]["vad"].shape
 
         mic_sig_batch_out = np.zeros(out_sig_shape)
         for i in range(batch_size):
-            mic_sig_batch_out[i, :mic_sig_batch[i].shape[0]] = mic_sig_batch[i]
+            mic_sig_batch_out[i, : mic_sig_batch[i].shape[0]] = mic_sig_batch[i]
 
             doaw = np.zeros(scene_doa_out_shape)
             vad = np.zeros(scene_vad_out_shape)

@@ -33,11 +33,10 @@ They are:
 
 ## Pretrained models
 
-You can find the pretrained models in the `checkpoints` folder.
+You can find the pretrained models in the `checkpoints` folder. You must also change the variables in `params.json` to point to the correct model
+and to use thee correct parameters as defined in the Configuration section above.
 
 ## Datasets
 
 * LOCATA [LOCATA challenge](https://www.locata.lms.tf.fau.de/). 
-* TAU-NIGENS [TAU-NIGENS dataset](https://dcase.community/challenge2021/task-sound-event-localization-and-detection#:~:text=The%20TAU%2DNIGENS%20Spatial%20Sound,seen%20from%20the%20recording%20position). After downloading, run the preprocessing script `python -m datasets.preprocess_tau_nigens_dataset` to generate the dataset in the correct format. Set the variable `path_tau_nigens_preprocessed` to the path of the output preprocessed dataset in `params.json`.
-
-
+* TAU-NIGENS [TAU-NIGENS dataset](https://dcase.community/challenge2021/task-sound-event-localization-and-detection#:~:text=The%20TAU%2DNIGENS%20Spatial%20Sound,seen%20from%20the%20recording%20position). After downloading and extracting the files metadata_dev.zip, mic_dev.z01, mic_dev.zip and mic_eval.zip, run the preprocessing script `python -m datasets.preprocess_tau_nigens_dataset` to generate the dataset in the correct format. Set the variable `path_tau_nigens_preprocessed` to the path of the output preprocessed dataset in `params.json`.

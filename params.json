@@ -5,7 +5,7 @@
     "path_locata": "/Users/ezajlerg/datasets/third_party/locata_dev",
     "path_tau_nigens": "/Users/ezajlerg/datasets/third_party/TAU-NIGENS",
     "path_tau_nigens_preprocessed": "/Users/ezajlerg/datasets/third_party/TAU-NIGENS/feat_label_hnet_gcc_only",
-    "model_checkpoint_path": "/Users/ezajlerg/src/neural_srp/checkpoints/neural-srp-multi.bin",
+    "model_checkpoint_path": "/Users/ezajlerg/src/neural_srp_ojsp/checkpoints/neural-srp-multi.bin",
     "fs": 16000,
     "speed_of_sound": 343,
     "nb_gcc_bins": 64,
