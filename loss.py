@@ -194,45 +194,35 @@ class LocformerLoss(nn.Module):
         super().__init__()
         self.params = params
         self.loss_params = params["loss"]
+
+        self.sigma = params["loss"]["locformer_sigma"]
+
         self.device = device
-        self.activity_loss = nn.BCEWithLogitsLoss()
-        self.criterion = nn.MSELoss()
 
+    def forward(self, output: torch.Tensor, target: torch.Tensor) :
+        """Compute the loss function using a Gaussian target kernel as
+        described in the ICRA paper "Deep Neural Networks for Multiple Speaker Detection and Localization", by He et al. (2018).
+        
+        Args:
+            output: Tensor of shape (batch, num_frames, num_resolution, 3). The direction of the vectors represents the
+            direction of the sound source, and the magnitude of the vector represents the probability of the sound source
+            being at that location.
+            target: Tensor of shape (batch, num_frames, num_tracks*3 + num tracks). The first num_tracks*3 elements are unit vectors in 3D space representing the
+            DoA of the sound sources, and the last num_tracks elements are the activity of the sound sources.
 
-    def forward(self, output, target, activity_out=None):
+        """
         metrics = {}
 
-        batch_size, seq_len, nb_tracks, _ = output.shape
+        batch_size, nb_frames, nb_candidates, _ = output.shape
+        
+        # Get the probabilities
+        probabilities = torch.norm(output, p=2, dim=-1)
 
-        # Interpolate target to match output shape
-        target = torch.nn.functional.interpolate(
-            target.transpose(1, 2), size=output.shape[1]
-        ).transpose(1, 2)
-        # Transposing is needed because interpolate works on the last n - 2 dimensions
-        # (the first ones are batch and channel)
+        # Get the candidate locations as unit vectors in 3D space
+        locations = output / probabilities.unsqueeze(-1)
 
-        # The last dimension of target consists of the doas in the first unique_classes
-        # and the activity vector in the last unique_classes
-        target_doas = target[:, :, :-nb_tracks]
+        # Get the target locations
 
-        # (batch, sequence, max_nb_doas*3) to (batch, sequence, 3, max_nb_doas)
 
-        target_doas = target_doas.view(
-            target_doas.shape[0], target_doas.shape[1], 3, nb_tracks
-        ).transpose(-1, -2)
-
-        # (batch, sequence, 3, max_nb_doas) to (batch*sequence, 3, max_nb_doas)
-
-        # Collapse batch and sequence dimensions
-        output = output.reshape(-1, output.shape[-2], output.shape[-1])
-        target_doas = target_doas.reshape(
-            -1, target_doas.shape[-2], target_doas.shape[-1]
-        )
-
-        # Compute unit-vectors of predicted DoA
-        output_norm = torch.sqrt(torch.sum(output**2, -1) + 1e-10)
-        output = output / output_norm.unsqueeze(-1)
-
-        metrics["loss"] = loss
-
+        
         return metrics

@@ -104,7 +104,7 @@ class MultiSourceMetrics:
             target_doas.shape[0], target_doas.shape[1], 3, max_nb_doas
         ).transpose(-1, -2)
 
-        # Compute unit-vectors of outputicted DoA
+        # Compute unit-vectors of output DoA
         # (batch, sequence, 3, max_nb_doas) to (batch*sequence, 3, max_nb_doas)
         output = output.view(-1, output.shape[-2], output.shape[-1])
         target_doas = target_doas.view(-1, target_doas.shape[-2], target_doas.shape[-1])

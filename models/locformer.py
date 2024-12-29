@@ -6,7 +6,7 @@
 # The model outputs a vector, also of dimensions (num_resolution), where each element represents the probability of the
 # sound source being at the corresponding candidate location. Note that multiple sound sources can be localized by the model.
 
-from typing import Literal
+from typing import List, Literal
 import torch
 import torch.nn as nn
 import numpy as np
@@ -52,24 +52,30 @@ class Locformer(nn.Module):
 
     def forward(self, x, **kwargs):
         # x: (batch, num_channels, num_samples), if feature_extractor is not None
-        # srp_features: (batch, num_resolution)
+        # or: (batch, num_frames, num_resolution, 3) if feature_extractor is None
         if self.feature_extractor is not None:
             x = self.feature_extractor(x)
 
-        # transformer_output: (num_resolution, batch, 3)
-        transformer_output = self.transformer(x)
+        # transformer_output: (batch, num_frames, num_resolution, 3)
+        x = self.transformer(x)
 
-        # output: (batch, num_resolution)
-        output = rearrange(transformer_output, "r b d -> b r")
+        return x
 
-        return output
+    def estimate_locations_from_output(
+        network_output: torch.Tensor,
+        prob_threshold: float = 0.5,
+        angle_threshold: float = 8.0):
+
+        return estimate_locations_from_output(
+            network_output, prob_threshold, angle_threshold
+        )
 
 
 def estimate_locations_from_output(
     network_output: torch.Tensor,
     prob_threshold: float = 0.5,
     angle_threshold: float = 8.0,
-):
+) -> List[List[torch.Tensor]]:
     """
     Estimate the number and location of the sound sources from the network output, similarly to the thresholding procedure
     described in the ICRA paper "Deep Neural Networks for Multiple Speaker Detection and Localization", by He et al. (2018). A sound source
@@ -77,14 +83,13 @@ def estimate_locations_from_output(
     other locations within the angle_threshold.
 
     Args:
-        network_output: Tensor of shape (batch, num_resolution, 3). The direction of the vectors represents the
+        network_output: Tensor of shape (batch, num_frames, num_resolution, 3). The direction of the vectors represents the
         direction of the sound source, and the magnitude of the vector represents the probability of the sound source
         being at that location.
         prob_threshold: The minimum probability threshold for a sound source to be detected.
         angle_threshold: The minimum angular distance in degrees between sources for them to be considered distinct.
-
     """
-    batch_size, num_resolution, _ = network_output.size()
+    batch_size, num_frames, num_resolution, _ = network_output.size()
 
     # Get the probabilities
     probabilities = torch.norm(network_output, p=2, dim=-1)

@@ -12,7 +12,7 @@ import torch
 from datasets.tau_nigens_dataset import TauNigensDataLoader
 from loss import LocformerLoss, MultiSourceLoss
 from metrics import MultiSourceMetrics
-from trainers.locformer import LocformerTrainer
+from trainers.locformer_multi_source import LocformerMultiSourceTrainer
 from trainers.tau_nigens import TauNigensTrainer
 from utils import get_device, get_params
 
@@ -147,7 +147,7 @@ def main():
 
     if params["model"] == "locformer":
         loss = LocformerLoss(params, device)
-        trainer = LocformerTrainer(params, loss)
+        trainer = LocformerMultiSourceTrainer(params, loss)
     else:
         loss = MultiSourceLoss(params, device)
         trainer = TauNigensTrainer(params, loss, data_in, data_out)
@@ -219,21 +219,16 @@ def main():
 
         # Print stats and plot scores
         print(
-            "epoch: {}, time: {:0.2f}/{:0.2f}, "
-            "train_loss: {:0.2f} {}, val_loss: {:0.2f} {}, "
-            "LE/MOTA/IDS/LR/LP/LF: {:0.3f}/{}, "
-            "best_val_epoch: {} {}".format(
+            "epoch: {}, time: {:0.2f}/{:0.2f}, ".format(
                 epoch_cnt,
                 train_time,
                 val_time,
+            ),
+            "train_loss: {:0.2f}, val_loss: {:0.2f}, "
+            "LE/MOTA/IDS/LR/LP/LF: {:0.3f}/{}, "
+            "best_val_epoch: {} {}".format(
                 train_loss,
-                # "({:0.2f},{:0.2f},{:0.2f})".format(
-                #     train_dMOTP_loss, train_dMOTA_loss, train_act_loss
-                # ),
                 val_loss,
-                # "({:0.2f},{:0.2f},{:0.2f})".format(
-                #     val_dMOTP_loss, val_dMOTA_loss, val_act_loss
-                # ),
                 loc_error,
                 "{:0.2f}/{:0.2f}/{:0.2f}/{:0.2f}/{:0.2f}".format(
                     val_mota,

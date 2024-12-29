@@ -20,7 +20,7 @@ from loss import OneSourceLoss
 from trainers.cross_3d import Cross3dTrainer
 from trainers.neural_srp_one_source import NeuralSrpOneSource
 from trainers.one_source_tracker import OneSourceTracker
-from trainers.locformer import LocformerTrainer
+from trainers.locformer_one_source import LocformerOneSourceTrainer
 from utils import Parameter
 
 
@@ -49,7 +49,11 @@ def main():
     ]  # Only for the output filenames, change it also in Network declaration cell
 
     # Load loss
-    loss = OneSourceLoss(params)
+    
+	if model_name == "locformer":
+        loss = LocformerOneSourceLoss(params)
+    else:
+    	loss = OneSourceLoss(params)
 
     # %% Load network
     if model_name.startswith("neural_srp"):
@@ -72,6 +76,8 @@ def main():
             peak_picking_mode="weighted_sum",
         )
         trainer = OneSourceTracker(model, loss)
+    elif model_name == "locformer":
+		trainer = LocformerOneSourceTrainer(params, loss, apply_vad=True)
 
     # 4. Load dataset
     if torch.cuda.is_available():

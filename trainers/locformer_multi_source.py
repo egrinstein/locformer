@@ -9,7 +9,7 @@ from models.locformer import Locformer, LocformerFeatureExtractor
 from utils import dict_to_device, dict_to_float, get_device
 
 
-class LocformerTrainer(torch.nn.Module):
+class LocformerMultiSourceTrainer(torch.nn.Module):
     def __init__(self, params, loss, print_model=True, allow_mps=True):
         super().__init__()
         self.device = get_device(allow_mps)
