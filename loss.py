@@ -187,3 +187,52 @@ class MultiSourceLoss(nn.Module):
             metrics["activity_loss"] = act_loss.item()
 
         return loss, metrics
+
+
+class LocformerLoss(nn.Module):
+    def __init__(self, params, device):
+        super().__init__()
+        self.params = params
+        self.loss_params = params["loss"]
+        self.device = device
+        self.activity_loss = nn.BCEWithLogitsLoss()
+        self.criterion = nn.MSELoss()
+
+
+    def forward(self, output, target, activity_out=None):
+        metrics = {}
+
+        batch_size, seq_len, nb_tracks, _ = output.shape
+
+        # Interpolate target to match output shape
+        target = torch.nn.functional.interpolate(
+            target.transpose(1, 2), size=output.shape[1]
+        ).transpose(1, 2)
+        # Transposing is needed because interpolate works on the last n - 2 dimensions
+        # (the first ones are batch and channel)
+
+        # The last dimension of target consists of the doas in the first unique_classes
+        # and the activity vector in the last unique_classes
+        target_doas = target[:, :, :-nb_tracks]
+
+        # (batch, sequence, max_nb_doas*3) to (batch, sequence, 3, max_nb_doas)
+
+        target_doas = target_doas.view(
+            target_doas.shape[0], target_doas.shape[1], 3, nb_tracks
+        ).transpose(-1, -2)
+
+        # (batch, sequence, 3, max_nb_doas) to (batch*sequence, 3, max_nb_doas)
+
+        # Collapse batch and sequence dimensions
+        output = output.reshape(-1, output.shape[-2], output.shape[-1])
+        target_doas = target_doas.reshape(
+            -1, target_doas.shape[-2], target_doas.shape[-1]
+        )
+
+        # Compute unit-vectors of predicted DoA
+        output_norm = torch.sqrt(torch.sum(output**2, -1) + 1e-10)
+        output = output / output_norm.unsqueeze(-1)
+
+        metrics["loss"] = loss
+
+        return metrics

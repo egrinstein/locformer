@@ -12,10 +12,11 @@ import torch.nn as nn
 import numpy as np
 from einops import rearrange
 
-from .srp import SRP
+from .srp import Srp
+from datasets.array_setup import ARRAY_SETUPS
 
 
-class LocFormer(nn.Module):
+class Locformer(nn.Module):
     def __init__(
         self,
         num_samples,
@@ -24,8 +25,9 @@ class LocFormer(nn.Module):
         dim_feedforward,
         dropout,
         num_heads=1,
+        feature_extractor=None,
     ):
-        super(LocFormer, self).__init__()
+        super(Locformer, self).__init__()
         self.num_samples = num_samples
         self.num_resolution = num_resolution
         self.num_heads = num_heads
@@ -33,8 +35,7 @@ class LocFormer(nn.Module):
         self.dim_feedforward = dim_feedforward
         self.dropout = dropout
 
-        # SRP layer
-        self.srp = SRP(num_resolution)
+        self.feature_extractor = feature_extractor
 
         # Transformer model, which computes the attention mechanism on the SRP-weighted candidate locations of shape (num_resolution, 3)
         # to generate the final output of same shape.
@@ -49,25 +50,14 @@ class LocFormer(nn.Module):
             num_layers,
         )
 
-    def forward(self, x):
-        # x: (batch, num_channels, num_samples)
+    def forward(self, x, **kwargs):
+        # x: (batch, num_channels, num_samples), if feature_extractor is not None
         # srp_features: (batch, num_resolution)
-        srp_features = self.srp(x)
-
-        # candidate_locations: (num_resolution, 3)
-        candidate_locations = self.srp.candidate_locations
-
-        # srp_features: (batch, num_resolution, 1)
-        srp_features = rearrange(srp_features, "b r -> b r ()")
-
-        # directional SRP: (batch, num_resolution, 3)
-        directional_srp = srp_features * candidate_locations
-
-        # transformer_input: (num_resolution, batch, 3)
-        transformer_input = rearrange(directional_srp, "b r d -> r b d")
+        if self.feature_extractor is not None:
+            x = self.feature_extractor(x)
 
         # transformer_output: (num_resolution, batch, 3)
-        transformer_output = self.transformer(transformer_input)
+        transformer_output = self.transformer(x)
 
         # output: (batch, num_resolution)
         output = rearrange(transformer_output, "r b d -> b r")
@@ -148,3 +138,70 @@ def angular_distance(a: torch.Tensor, b: torch.Tensor, output_mode=Literal["radi
         output = output * 180 / np.pi
     
     return output
+
+
+class LocformerFeatureExtractor(torch.nn.Module):
+    def __init__(self, params):
+        super().__init__()
+
+        array_train = params["dataset"]["array_train"]
+        array_test = params["dataset"]["array_test"]
+
+        self.mic_pos = None
+        if array_train == array_test \
+            and array_train != "random":
+            # If the train and test arrays are the same, the maximum delay is computed only once
+            self.mic_pos = torch.from_numpy(ARRAY_SETUPS[array_train]["mic_pos"])
+
+        win_size = params["win_size"]
+        hop_rate = params["hop_rate"]
+        self.c = params["speed_of_sound"]
+        self.fs = params["fs"]
+        self.res_phi = params["srp"]["res_phi"]
+
+        self.srp = Srp(
+            win_size,
+            hop_rate,
+            params["srp"]["res_the"],
+            params["srp"]["res_phi"],
+            self.fs,
+            thetaMax=np.pi,
+            mic_pos=self.mic_pos,
+            gcc_transform="phat",
+            normalize=True, # Verify
+        )
+    
+    def forward(self, x) -> torch.Tensor:
+        """
+        Forward pass of the feature extractor
+        
+        Args:
+            x: Tensor of shape (batch, num_channels, num_samples) 
+        
+        Returns:
+            Tensor of shape (batch, num_resolution, 3)
+        """
+
+        x = self.srp(x)
+        maps = x["signal"].unsqueeze(1)  # Add channel dimension
+
+        maximums = maps.view(list(maps.shape[:-2]) + [-1]).argmax(dim=-1)
+
+        max_the = (maximums / self.res_phi).float() / maps.shape[-2]
+        max_phi = (maximums % self.res_phi).float() / maps.shape[-1]
+        repeat_factor = np.array(maps.shape)
+        repeat_factor[:-2] = 1
+        repeat_factor = repeat_factor.tolist()
+        maps = torch.cat(
+            (
+                maps,
+                max_the[..., None, None].repeat(repeat_factor),
+                max_phi[..., None, None].repeat(repeat_factor),
+            ),
+            1,
+        )
+        # TODO: Understand the format of the maps tensor
+        # TODO: transform the maps tensor into a list of 3D vectors representing the magnitude and direction of the sound sources
+
+        x["signal"] = maps
+        return x

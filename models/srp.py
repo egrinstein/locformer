@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from .signal_processing import GCC, Window, get_gcc_bins, compute_tau_max
-from .mic_selection import select_pairs
+
 
 
 class Srp(nn.Module):
@@ -27,7 +27,6 @@ class Srp(nn.Module):
         gcc_transform="phat",
         gcc_tau_max=None,
         estimate_doa=False,
-        mic_selection_mode="distinct_angles",
         peak_picking_mode="argmax",
     ):
         super().__init__()
@@ -60,8 +59,6 @@ class Srp(nn.Module):
             # Precompute the grid of tau0
             self.grid = self._init_grid(mic_pos)
 
-        self.mic_selection_mode = mic_selection_mode
-
     def forward(self, x):
         x_signal = x["signal"]
         mic_pos = x["mic_pos"][0]
@@ -85,9 +82,7 @@ class Srp(nn.Module):
         ).float()
 
         # 2. Compute the SRP maps
-        # 2.1 Perform microphone selection
-        # TODO: compute the microphone selection on initialization
-        pair_idxs = select_pairs(mic_pos, mode=self.mic_selection_mode)
+        pair_idxs = get_all_pair_idxs(mic_pos.shape[0], x_gcc.device)
 
         # 2.2 Compute the SRP maps
         for pair in pair_idxs:
@@ -97,8 +92,7 @@ class Srp(nn.Module):
             maps -= torch.mean(torch.mean(maps, -1, keepdim=True), -2, keepdim=True)
             maps += 1e-12  # To avoid numerical issues
             maps /= torch.max(torch.max(maps, -1, keepdim=True)[0], -2, keepdim=True)[0]
-        # else:
-        #     maps /= len(pair_idxs)
+
         x["signal"] = maps
 
         if self.estimate_doa:
@@ -184,3 +178,15 @@ class Srp(nn.Module):
         tau0 = tau0.permute([2, 3, 0, 1])
 
         return tau0
+
+
+def get_all_pair_idxs(M, device):
+    # Generate all possible pairs for M microphones
+    pair_idxs = []
+    for i in range(M):
+        for j in range(i + 1, M):
+            pair_idxs.append((i, j))
+
+    pair_idxs = torch.Tensor(pair_idxs).long().to(device)
+    
+    return pair_idxs

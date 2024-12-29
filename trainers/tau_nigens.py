@@ -89,7 +89,7 @@ class TauNigensTrainer(torch.nn.Module):
             loss_value += loss_dict["loss"].item()
 
             nb_batches += 1
-            if self.params["quick_test"] and nb_batches == 4:
+            if self.params["sanity_check"] and nb_batches == 4:
                 break
 
         loss_value /= nb_batches

@@ -7,7 +7,6 @@ import torch.nn as nn
 from datasets.mic_pos_utils import get_all_pairs, prepare_mic_pos
 from models.signal_processing import GCC, Window
 from models.layers import Mlp
-from models.mic_selection import select_pairs
 
 
 class ConvBlock(nn.Module):
@@ -402,26 +401,7 @@ class NeuralSrpFeatureExtractor(torch.nn.Module):
             (batch_size, n_pairs, 2), dtype=torch.long, device=feature_matrix.device,
         )
 
-        idx_all_pairs = get_all_pairs(n_mics, device=feature_matrix.device)
-        n_all_pairs = idx_all_pairs.shape[0]
-        if mode == "first":
-            idx_pairs = (
-                torch.tensor(
-                    [[0, i] for i in range(1, n_mics)],
-                    dtype=torch.long,
-                    device=feature_matrix.device,
-                )
-            )
-        elif mode == "all":
-            idx_pairs = idx_all_pairs
-        elif mode == "random":
-            perm = torch.randperm(n_all_pairs)[:n_pairs]
-            idx_pairs = idx_all_pairs[perm]
-        elif mode == "distinct_angles":
-            idx_pairs = select_pairs(mic_pos[0])
-        else:
-            raise NotImplementedError(f"Mode {mode} not implemented.")
-        
+        idx_pairs = get_all_pairs(n_mics, device=feature_matrix.device)
         idx_pairs = idx_pairs.unsqueeze(0).expand(batch_size, -1, -1)
 
         n_pairs = idx_pairs.shape[1]

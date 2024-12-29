@@ -1,11 +1,11 @@
 {
-    "model": "neural_srp",
+    "model": "locformer",
     "path_train": "/rds/general/user/ezajlerg/home/datasets/librispeech/train-clean-100",
     "path_test": "/rds/general/user/ezajlerg/home/datasets/librispeech/test-clean",
     "path_locata": "/Users/ezajlerg/datasets/third_party/locata_dev",
     "path_tau_nigens": "/Users/ezajlerg/datasets/third_party/TAU-NIGENS",
     "path_tau_nigens_preprocessed": "/Users/ezajlerg/datasets/third_party/TAU-NIGENS/feat_label_hnet_gcc_only",
-    "model_checkpoint_path": "/Users/ezajlerg/src/neural_srp_ojsp/checkpoints/neural-srp-multi.bin",
+    "model_checkpoint_path": "/Users/ezajlerg/src/neural_srp_ojsp/checkpoints/cross-3d-omni.bin",
     "fs": 16000,
     "speed_of_sound": 343,
     "nb_gcc_bins": 64,
@@ -14,7 +14,7 @@
     "hop_rate": 0.5,
     "mic_pair_sampling_mode": "all",
     "save_figures": true,
-    "quick_test": false,
+    "sanity_check": false,
     "dataset": {
         "max_audio_len_s": 10,
         "array_train": "benchmark2",
@@ -72,8 +72,7 @@
     },
     "srp":{
         "res_the": 32,
-        "res_phi": 64,
-        "gcc_mode": "neural"
+        "res_phi": 64
     },
     "loss":{
         "doa_loss_weight": 1,

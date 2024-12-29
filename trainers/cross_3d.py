@@ -14,7 +14,6 @@ import torch
 import webrtcvad
 
 from models.srp import Srp
-from models.nw_gcc import NwGCC
 
 from trainers.one_source_tracker import OneSourceTracker
 from datasets.array_setup import ARRAY_SETUPS
@@ -102,12 +101,6 @@ class Cross3DFeatureExtractor(torch.nn.Module):
 
         self.res_phi = params["srp"]["res_phi"]
 
-        gcc_mode = params["srp"]["gcc_mode"]
-        if gcc_mode == "phat":
-            gcc_transform = "phat"
-        elif gcc_mode == "neural":
-            gcc_transform = NwGCC(win_size, transform="phat", tau_max=params["nb_gcc_bins"]//2)
-
         self.srp = Srp(
             win_size,
             hop_rate,
@@ -116,10 +109,8 @@ class Cross3DFeatureExtractor(torch.nn.Module):
             self.fs,
             thetaMax=np.pi,
             mic_pos=self.mic_pos,
-            gcc_transform=gcc_transform,
-            mic_selection_mode=params["mic_pair_sampling_mode"],
-            normalize=gcc_transform == "phat",
-            # Only normalize if the GCC is not a neural network, because the gradient will be lost
+            gcc_transform="phat",
+            normalize=True, # Verify
         )
     
     def forward(self, x):

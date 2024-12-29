@@ -10,8 +10,9 @@ import time
 import torch
 
 from datasets.tau_nigens_dataset import TauNigensDataLoader
-from loss import MultiSourceLoss
+from loss import LocformerLoss, MultiSourceLoss
 from metrics import MultiSourceMetrics
+from trainers.locformer import LocformerTrainer
 from trainers.tau_nigens import TauNigensTrainer
 from utils import get_device, get_params
 
@@ -137,19 +138,19 @@ def main():
 
     print("unique_name: {}\n".format(unique_name))
 
-
     device = get_device()
-    # torch.autograd.set_detect_anomaly(True)
-
-    loss = MultiSourceLoss(params, device)
 
     # create data generators for train, val and test sets
     data_gen_train, data_gen_val, data_gen_test, data_in, data_out = create_datasets(
         params
     )
 
-    # create trainer
-    trainer = TauNigensTrainer(params, loss, data_in, data_out)
+    if params["model"] == "locformer":
+        loss = LocformerLoss(params, device)
+        trainer = LocformerTrainer(params, loss)
+    else:
+        loss = MultiSourceLoss(params, device)
+        trainer = TauNigensTrainer(params, loss, data_in, data_out)
 
     # start training
     best_val_epoch = -1
@@ -160,7 +161,7 @@ def main():
     best_precision = 0
     best_fscore = 0
 
-    nb_epoch = 2 if params["quick_test"] else params["training"]["nb_epochs"]
+    nb_epoch = 2 if params["sanity_check"] else params["training"]["nb_epochs"]
     tr_loss_list = np.zeros(nb_epoch)
     val_loss_list = np.zeros(nb_epoch)
     hung_tr_loss_list = np.zeros(nb_epoch)
@@ -171,24 +172,14 @@ def main():
         # TRAINING
         # ---------------------------------------------------------------------
         start_time = time.time()
-        (
-            train_loss,
-            train_dMOTP_loss,
-            train_dMOTA_loss,
-            train_act_loss,
-        ) = trainer.train_epoch(data_gen_train)
+        train_loss = trainer.train_epoch(data_gen_train)
         train_time = time.time() - start_time
         # ---------------------------------------------------------------------
         # VALIDATION
         # ---------------------------------------------------------------------
         start_time = time.time()
         val_metric = MultiSourceMetrics(params)
-        (
-            val_loss,
-            val_dMOTP_loss,
-            val_dMOTA_loss,
-            val_act_loss,
-        ) = trainer.test_epoch(data_gen_val, val_metric)
+        val_loss = trainer.test_epoch(data_gen_val, val_metric)
 
         (
             loc_error,
@@ -236,13 +227,13 @@ def main():
                 train_time,
                 val_time,
                 train_loss,
-                "({:0.2f},{:0.2f},{:0.2f})".format(
-                    train_dMOTP_loss, train_dMOTA_loss, train_act_loss
-                ),
+                # "({:0.2f},{:0.2f},{:0.2f})".format(
+                #     train_dMOTP_loss, train_dMOTA_loss, train_act_loss
+                # ),
                 val_loss,
-                "({:0.2f},{:0.2f},{:0.2f})".format(
-                    val_dMOTP_loss, val_dMOTA_loss, val_act_loss
-                ),
+                # "({:0.2f},{:0.2f},{:0.2f})".format(
+                #     val_dMOTP_loss, val_dMOTA_loss, val_act_loss
+                # ),
                 loc_error,
                 "{:0.2f}/{:0.2f}/{:0.2f}/{:0.2f}/{:0.2f}".format(
                     val_mota,
